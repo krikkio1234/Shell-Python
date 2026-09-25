@@ -2,80 +2,87 @@ import sys
 import os
 import subprocess
 
-def main():
-    sys.stdout.write("$ ")
-    pass
+#handler -> è un boss di una classe che richiama tutte le funzioni 
 
-commandShell = {"exit", "type", "echo", "pwd", "cd"}
-path = os.environ.get("PATH")
-directory = path.split(os.pathsep)
+class Parse:
+#echo hello world
+    def parse(self, commandUser):
+        flag = ""
+        saveCommandShell = []
+        for char in commandUser:
+            if char != " ":
+                flag += char
+            elif char == " ":
+                saveCommandShell.append(flag) 
+                flag = ""
+        if flag != "": saveCommandShell.append(flag)
+        return saveCommandShell
 
-exit = False
-while not exit:
-    if __name__ == "__main__":
-        main()
+class Commands:
+    def __init__(self, parse : Parse):
+        self.parse = parse
+        self.commandShell = {
+            "echo" : self.echoCommand,
+            "exit" : self.exitCommand,
+            "type" : self.typeCommand
+        }
 
+    def userInput(self):
+        self.commandUser = input()
+        return self.commandUser
 
-    #echo 'hello    world'
-    #echo 'hello world'
+    def echoCommand(self, commandUser):
+        print(commandUser, end=" ")
 
-    command = input()
-    commandPart = []
-    current = ""
-    insideQuotes = False
+    def cannotFoundCommand(self):
+        print(f"{self.commandUser}: command not found", end="")
 
-    for i in range(len(command)):
-        if command[i] == "'":
-            insideQuotes = not insideQuotes
-        elif command[i] == " " and not insideQuotes:
-            if current:
-                commandPart.append(current)
-                current = ""
+    def exitCommand(self) -> bool:
+        if self.commandUser == "exit": return False
+        else: return True
+
+    #print(f"{commandUser}: not found", end="")
+    def typeCommand(self, commandUser):
+        if commandUser in self.commandShell.keys(): 
+            print(f"{commandUser} is a shell builtin", end="")
+            return 
+        executableFile = self.searchExecuteFiles(commandUser)
+        if executableFile == None:
+            print(f"{commandUser}: not found", end="")
+            return
+        print(f"{commandUser}: not found", end="")
+
+    def searchExecuteFiles(self, commandUser):
+        fullPath = os.getenv("PATH")
+        pathWindows = list(fullPath.split(os.pathsep))
+        find = False
+        executableFile = False
+        for i in pathWindows:
+            compleatePath = os.path.join(i, commandUser)
+            if os.path.exists(compleatePath):
+                if os.access(compleatePath, os.X_OK):
+                    namePath = compleatePath
+                    executableFile = True
+                    break
+        if executableFile: return namePath
+        return None
+
+def main(command : Commands):
+    loop = True
+    while loop:
+        sys.stdout.write("$ ")
+        parsed = command.parse.parse(command.userInput())
+        loop = command.exitCommand()
+        if parsed[0] in command.commandShell.keys():
+            recovery = command.commandShell.get(parsed[0])
+            for i in range (1, len(parsed)):
+                recovery(parsed[i])
         else:
-            current += command[i]
-    if current:
-        commandPart.append(current)
-
-    if commandPart[0] == "echo":
-        for i in range(1, len(commandPart)):
-            print(commandPart[i], end=" ")
+            if command.searchExecuteFiles(parsed[0]) == None: command.cannotFoundCommand()
+            else: 
+                subprocess.run([command.searchExecuteFiles(parsed[0]), *parsed[1:]])
         print()
-    if command == "exit":
-        exit = True
-    if commandPart[0] == "type" and commandPart[1] in commandShell:
-        print(f"{commandPart[1]} is a shell builtin")
-    if commandPart[0] == "type" and commandPart[1] not in commandShell:
-        find = False
-        for i in directory:
-            fullPath = os.path.join(i, commandPart[1]) #unione comandi
-            if os.path.exists(fullPath): #controllo esistenza
-                if os.access(fullPath, os.X_OK): #controllo execute
-                    print(f"{commandPart[1]} is {fullPath}")
-                    find = True
-                    break
-        if not find:
-            print(f"{commandPart[1]}: not found")
-    if commandPart[0] not in commandShell:
-        find = False
-        count = 0
-        for i in directory:
-            fullPath = os.path.join(i, commandPart[0])
-            if os.path.exists(fullPath):
-                if os.access(fullPath, os.EX_OK):                  
-                    find = True
-                    break
-        if find:
-            subprocess.run(commandPart, executable=fullPath)
-    if commandPart[0] not in commandShell and not find:
-        print(f"{command}: command not found")
-    if commandPart[0] == "pwd":
-        print(os.getcwd())
-    if commandPart[0] == "cd":
-        if commandPart[1] == "~":
-            home = os.environ.get("HOME")
-            os.chdir(home)
-            continue
-        if os.path.exists(commandPart[1]):
-            os.chdir(commandPart[1])
-        else:
-            print(f"cd: {commandPart[1]}: No such file or directory")
+
+if __name__ == "__main__":
+
+    main(Commands(Parse()))
