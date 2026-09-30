@@ -18,13 +18,15 @@ class Parse:
         if flag != "": saveCommandShell.append(flag)
         return saveCommandShell
 
-class Commands:
+class BaseCommands:
     def __init__(self, parse : Parse):
         self.parse = parse
         self.commandShell = {
             "echo" : self.echoCommand,
             "exit" : self.exitCommand,
-            "type" : self.typeCommand
+            "type" : self.typeCommand,
+            "pwd" : self.pwdCommand,
+            "cd" : self.cdCommand
         }
 
     def userInput(self):
@@ -50,12 +52,10 @@ class Commands:
         if executableFile == None:
             print(f"{commandUser}: not found", end="")
             return
-        print(f"{commandUser}: not found", end="")
 
     def searchExecuteFiles(self, commandUser):
         fullPath = os.getenv("PATH")
         pathWindows = list(fullPath.split(os.pathsep))
-        find = False
         executableFile = False
         for i in pathWindows:
             compleatePath = os.path.join(i, commandUser)
@@ -67,22 +67,34 @@ class Commands:
         if executableFile: return namePath
         return None
 
-def main(command : Commands):
+    def pwdCommand(self):
+        print(os.getcwd(), end="")
+
+    def cdCommand(self, commandUser):
+        if os.path.isdir(commandUser): os.chdir(commandUser)
+        else: print(f"cd: {commandUser}: No such file or directory")
+
+def main(baseCommand : BaseCommands):
     loop = True
     while loop:
-        sys.stdout.write("$ ")
-        parsed = command.parse.parse(command.userInput())
-        loop = command.exitCommand()
-        if parsed[0] in command.commandShell.keys():
-            recovery = command.commandShell.get(parsed[0])
-            for i in range (1, len(parsed)):
-                recovery(parsed[i])
+        sys.stdout.write("$ ")  
+        parsed = baseCommand.parse.parse(baseCommand.userInput())
+        loop = baseCommand.exitCommand()
+        if parsed[0] in baseCommand.commandShell:
+            #print("prova")
+            if (len(parsed)) == 1:
+                recovery = baseCommand.commandShell.get(parsed[0])
+                recovery()
+            else:    
+                recovery = baseCommand.commandShell.get(parsed[0])
+                for i in range (1, len(parsed)):
+                    recovery(parsed[i])
         else:
-            if command.searchExecuteFiles(parsed[0]) == None: command.cannotFoundCommand()
+            if baseCommand.searchExecuteFiles(parsed[0]) == None: baseCommand.cannotFoundCommand()
             else: 
-                subprocess.run([command.searchExecuteFiles(parsed[0]), *parsed[1:]])
+                subprocess.run([baseCommand.searchExecuteFiles(parsed[0]), *parsed[1:]])
         print()
 
 if __name__ == "__main__":
-
-    main(Commands(Parse()))
+    baseCommands = BaseCommands(Parse())
+    main(baseCommands)
