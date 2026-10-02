@@ -5,14 +5,31 @@ import subprocess
 #handler -> è un boss di una classe che richiama tutte le funzioni 
 
 class Parse:
-#echo hello world
+#echo script\ \ \ \ \ \ world
     def parse(self, commandUser):
+        insideQuotes = None
         flag = ""
         saveCommandShell = []
-        for char in commandUser:
-            if char != " ":
+        for i, char in enumerate(commandUser):
+            if char == "\\" and not insideQuotes:
+                i += 1
+                continue
+            if commandUser[i - 1] == "\\" and not insideQuotes: 
                 flag += char
-            elif char == " ":
+                continue
+            if char == "'" and insideQuotes == '"':
+                flag += char
+                continue
+            if char == "'" or char == '"':
+                insideQuotes = char
+                continue
+            if char != " ": 
+                flag += char
+                continue
+            if char == " " and insideQuotes:
+                flag += char
+                continue          
+            if flag and char == " ":
                 saveCommandShell.append(flag) 
                 flag = ""
         if flag != "": saveCommandShell.append(flag)
@@ -71,8 +88,12 @@ class BaseCommands:
         print(os.getcwd(), end="")
 
     def cdCommand(self, commandUser):
-        if os.path.isdir(commandUser): os.chdir(commandUser)
-        else: print(f"cd: {commandUser}: No such file or directory")
+        if commandUser != "~":
+            if os.path.isdir(commandUser): os.chdir(commandUser)
+            else: print(f"cd: {commandUser}: No such file or directory")
+        else:
+            os.chdir(os.path.expanduser("~"))
+        print(end="")
 
 def main(baseCommand : BaseCommands):
     loop = True
@@ -80,19 +101,21 @@ def main(baseCommand : BaseCommands):
         sys.stdout.write("$ ")  
         parsed = baseCommand.parse.parse(baseCommand.userInput())
         loop = baseCommand.exitCommand()
-        if parsed[0] in baseCommand.commandShell:
-            #print("prova")
+        cmd = parsed[0]
+        if cmd in baseCommand.commandShell:
+            #print("echo cuiao mondo")
             if (len(parsed)) == 1:
-                recovery = baseCommand.commandShell.get(parsed[0])
+                recovery = baseCommand.commandShell.get(cmd)
                 recovery()
             else:    
-                recovery = baseCommand.commandShell.get(parsed[0])
+                recovery = baseCommand.commandShell.get(cmd)
                 for i in range (1, len(parsed)):
                     recovery(parsed[i])
         else:
-            if baseCommand.searchExecuteFiles(parsed[0]) == None: baseCommand.cannotFoundCommand()
+            if baseCommand.searchExecuteFiles(cmd) is None: baseCommand.cannotFoundCommand()
             else: 
-                subprocess.run([baseCommand.searchExecuteFiles(parsed[0]), *parsed[1:]])
+                executablePath = baseCommand.searchExecuteFiles(cmd) 
+                subprocess.run([executablePath, *parsed[1:]])
         print()
 
 if __name__ == "__main__":
