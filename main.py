@@ -9,12 +9,13 @@ class Parse:
         insideQuotes = None
         flag = ""
         saveCommandShell = []
+        escaped = None
         for i, char in enumerate(commandUser):
             #echo "example\"insidequotes"shell\"
             #Expected: example"insidequotesshell"
             #Received: example"insidequotesshell
-            if i + 1 > len(commandUser):
-                continue
+            #if i + 1 > len(commandUser):
+            #    continue
             if char == "\\" and commandUser[i - 1] != "\\":
                 continue
             if commandUser[i - 1] == "\\" and insideQuotes:
