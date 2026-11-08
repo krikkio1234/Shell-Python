@@ -11,11 +11,6 @@ class Parse:
         saveCommandShell = []
         escaped = None
         for i, char in enumerate(commandUser):
-            #echo "example\"insidequotes"shell\"
-            #Expected: example"insidequotesshell"
-            #Received: example"insidequotesshell
-            #if i + 1 > len(commandUser):
-            #    continue
             if char == "\\" and commandUser[i - 1] != "\\":
                 continue
             if commandUser[i - 1] == "\\" and insideQuotes:
@@ -48,6 +43,43 @@ class Parse:
         if flag != "": saveCommandShell.append(flag)
         #print(saveCommandShell)
         return saveCommandShell
+
+    def parseRedirect(self, commandUser):
+        insideQuotes = None
+        openingFile = False
+        flag = ""
+        saveCommandShell = []
+        position = 0
+        #echo hello > output.txt
+        for char in commandUser:
+            if char == "'" or char == '"':
+                if char == insideQuotes:
+                    insideQuotes = None
+                    continue
+                insideQuotes = char
+                continue
+            if char == ">" and not insideQuotes:
+                openingFile = True
+                continue
+            if not insideQuotes:
+                flag += char
+                continue
+            if flag and char == " ":
+                saveCommandShell.append(flag)
+                continue
+        if ">" in saveCommandShell:
+            position = 0
+            for i, elemento in enumerate(saveCommandShell):
+                if elemento == ">":
+                    position = i
+                    break
+        try:    
+            nameFile = saveCommandShell[position + 1]
+            with open(nameFile, "w") as file:
+                pass
+        except IndexError:
+            print("MissingFileSpecification")
+
 
 class BaseCommands:
     def __init__(self, parse : Parse):
@@ -113,29 +145,34 @@ def main(baseCommand : BaseCommands):
     while loop:
         sys.stdout.write("$ ")  
         sys.stdout.flush()
-        parsed = baseCommand.parse.parse(baseCommand.userInput())
+        userInput = baseCommand.userInput()
+        parsed = baseCommand.parse.parse(userInput)
+        fileParsed = baseCommand.parse.parseRedirect(userInput)
         loop = baseCommand.exitCommand()
         cmd = parsed[0]
         if cmd in baseCommand.commandShell:
-            if parsed[0] == "echo":
+            #permette di non buggare l'output e crea anche la nuova riga
+            if cmd == "echo":
                 separator = " "
                 base = separator.join(parsed[1:])
                 print(base)
                 continue
+            #vale solo per il comando lungo solo di 1 parola
             if (len(parsed)) == 1:
                 recovery = baseCommand.commandShell.get(cmd)
                 recovery()
+            #vale per comandi piu lunghi
             else:    
                 recovery = baseCommand.commandShell.get(cmd)
                 for i in range (1, len(parsed)):
                     recovery(parsed[i])
+                    continue
         else:
             if baseCommand.searchExecuteFiles(cmd) is None: 
                 baseCommand.cannotFoundCommand()
             else: 
                 executablePath = baseCommand.searchExecuteFiles(cmd) 
                 subprocess.run([cmd, *parsed[1:]], executable=executablePath)
-                continue
 
 if __name__ == "__main__":
     baseCommands = BaseCommands(Parse())
