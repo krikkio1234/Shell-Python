@@ -2,7 +2,8 @@ import sys
 import os
 import subprocess
 
-#handler -> è un boss di una classe che richiama tutte le funzioni 
+# non funziona il redirect perche devi creare un metodo a parte per il parse redirect
+# e poi collegarlo ad un'altra funzione che fa lui, la creazione del file
 
 class Parse:
     def parse(self, commandUser):
@@ -60,14 +61,16 @@ class Parse:
                 continue
             if char == ">" and not insideQuotes:
                 openingFile = True
-                continue
-            if not insideQuotes:
                 flag += char
                 continue
-            if flag and char == " ":
-                saveCommandShell.append(flag)
+            if char != " ":
+                flag += char
                 continue
-        if ">" in saveCommandShell:
+            if char == " ":
+                saveCommandShell.append(flag)
+                flag = ""
+        if flag != "": saveCommandShell.append(flag) 
+        if openingFile:
             position = 0
             for i, elemento in enumerate(saveCommandShell):
                 if elemento == ">":
@@ -75,10 +78,13 @@ class Parse:
                     break
         try:    
             nameFile = saveCommandShell[position + 1]
+            box = " ".join(saveCommandShell[1 : position])
             with open(nameFile, "w") as file:
+                file.write(box)
                 pass
         except IndexError:
-            print("MissingFileSpecification")
+            print("MissingFileSpecification")    
+        #return saveCommandShell
 
 
 class BaseCommands:
@@ -147,26 +153,31 @@ def main(baseCommand : BaseCommands):
         sys.stdout.flush()
         userInput = baseCommand.userInput()
         parsed = baseCommand.parse.parse(userInput)
-        fileParsed = baseCommand.parse.parseRedirect(userInput)
+        #print(fileParsed)
         loop = baseCommand.exitCommand()
         cmd = parsed[0]
+        #echo ciao > file.txt
         if cmd in baseCommand.commandShell:
-            #permette di non buggare l'output e crea anche la nuova riga
-            if cmd == "echo":
-                separator = " "
-                base = separator.join(parsed[1:])
-                print(base)
-                continue
             #vale solo per il comando lungo solo di 1 parola
             if (len(parsed)) == 1:
                 recovery = baseCommand.commandShell.get(cmd)
                 recovery()
             #vale per comandi piu lunghi
-            else:    
+            if cmd != "echo":    
                 recovery = baseCommand.commandShell.get(cmd)
                 for i in range (1, len(parsed)):
                     recovery(parsed[i])
-                    continue
+                continue
+            #permette di non buggare l'output e crea anche la nuova riga
+            if cmd == "echo" and ">" in cmd:
+                baseCommand.parse.parseRedirect(userInput)
+                print("prova")
+                continue
+            else:
+                separator = " "
+                base = separator.join(parsed[1:])
+                print(base)
+                continue
         else:
             if baseCommand.searchExecuteFiles(cmd) is None: 
                 baseCommand.cannotFoundCommand()
